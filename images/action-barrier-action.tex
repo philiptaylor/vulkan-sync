@@ -1,0 +1,15 @@
+\input{deps-common.tex}
+
+\begin{document}
+\begin{tikzpicture}
+
+\pic[] (draw1-) {action=Draw 1};
+\pic[yshift=-4cm] (barrier1-) {barrier=Pipeline barrier};
+\pic[yshift=-12cm] (draw2-) {action=Draw 2};
+
+\draw [->,pipedep2] (draw1-vs.south) -- (barrier1-src-vs.north);
+\draw [->,pipedep2] (draw1-xfer.south) -- (barrier1-src-xfer.north);
+\draw [->,pipedep2] (barrier1-dst-top.south) -- (draw2-top.north);
+
+\end{tikzpicture}
+\end{document}
