@@ -128,3 +128,37 @@ barrierport/.style={
 \end{scope}
 %
 }}
+%
+\tikzset{barrier-vsxf-top/.pic={
+%
+\node [pipestageinner] (src-top) {TOP};
+\node [pipestageinner,right=of src-top] (src-bottom) {BOTT};
+\node [pipestageinner,right=of src-bottom] (src-vs) {VERT};
+\node [pipestageinner,right=of src-vs] (src-fs) {FRAG};
+\node [pipestageinner,right=of src-fs] (src-ca) {COLR};
+\node [pipestageinner,right=of src-ca] (src-comp) {COMP};
+\node [pipestageinner,right=of src-comp] (src-xfer) {XFER};
+\node [pipestageinner,yshift=-4cm] (dst-top) {TOP};
+\node [pipestageinner,right=of dst-top] (dst-bottom) {BOTT};
+\node [pipestageinner,right=of dst-bottom] (dst-vs) {VERT};
+\node [pipestageinner,right=of dst-vs] (dst-fs) {FRAG};
+\node [pipestageinner,right=of dst-fs] (dst-ca) {COLR};
+\node [pipestageinner,right=of dst-ca] (dst-comp) {COMP};
+\node [pipestageinner,right=of dst-comp] (dst-xfer) {XFER};
+%
+\node [pipestage,node distance=8mm,below=of src-fs] (src) {SRC};
+\node [pipestage,node distance=8mm,above=of dst-fs] (dst) {DST};
+%
+\draw (src.north)
+    edge [<-,pipedep,in=330,out=90] (src-vs)
+    edge [<-,pipedep,in=270,out=90] (src-xfer);
+\draw (dst.south)
+    edge [->,pipedep,in=90,out=270] (dst-top);
+\draw [->,pipedep] (src.south) -- (dst.north);
+%
+\begin{scope}[on background layer]
+\node (bg) [draw,fit=(src-top) (dst-xfer),inner ysep=16pt] {};
+\node [anchor=north west] at (bg.north west) {#1};
+\end{scope}
+%
+}}

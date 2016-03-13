@@ -4,7 +4,7 @@
 \begin{tikzpicture}
 
 \pic[] (draw1-) {action=Draw 1};
-\pic[yshift=-4cm] (barrier1-) {barrier=Pipeline barrier};
+\pic[yshift=-4cm] (barrier1-) {barrier-vsxf-top=Pipeline barrier};
 \pic[yshift=-12cm] (draw2-) {action=Draw 2};
 
 \draw [->,pipedep2] (draw1-vs.south) -- (barrier1-src-vs.north);
