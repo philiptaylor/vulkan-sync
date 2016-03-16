@@ -5,7 +5,7 @@ action-mem/.pic={
 %
 \node [pipestageinner-wrap] (vs) {};
 \node [pipestageinner,below=of vs.north,yshift=+2mm] (vs-inner) {VERT};
-\node [pipestageinner-mem,above=of vs.south,yshift=-2mm] (vs-mem) {WRITE $img_1$};
+\node [pipestageinner-mem,above=of vs.south,yshift=-2mm] (vs-mem) {WRITE $\mathit{img}_1$};
 \node [pipestageinner,right=of vs] (fs) {FRAG};
 \node [pipestageinner,right=of fs] (ca) {COLR};
 \node [pipestageinner,right=of ca] (comp) {COMP};
@@ -42,7 +42,7 @@ action-mem2/.pic={
 \node [pipestageinner] (vs) {VERT};
 \node [pipestageinner-wrap,right=of vs] (fs) {};
 \node [pipestageinner,below=of fs.north,yshift=+2mm] (fs-inner) {FRAG};
-\node [pipestageinner-mem,above=of fs.south,yshift=-2mm] (fs-mem) {READ $img_1$};
+\node [pipestageinner-mem,above=of fs.south,yshift=-2mm] (fs-mem) {READ $\mathit{img}_1$};
 \node [pipestageinner,right=of fs] (ca) {COLR};
 \node [pipestageinner,right=of ca] (comp) {COMP};
 \node [pipestageinner,right=of comp] (xfer) {XFER};
@@ -94,7 +94,7 @@ action-mem2/.pic={
 \node [pipestage,node distance=10mm,below=of src] (pretrans) {PRE\_TRANS};
 \node [pipestage,node distance=10mm,above=of dst] (posttrans) {POST\_TRANS};
 %
-\node [pipestagemem,node distance=12mm,below=of src-bottom] (flush1) {FLUSH, $img_1$, \texttt{VERT|XFER}, \texttt{SHADER\_WRITE}};
+\node [pipestagemem,node distance=12mm,below=of src-bottom] (flush1) {FLUSH, $\mathit{img}_1$, \texttt{VERT|XFER}, \texttt{SHADER\_WRITE}};
 \node [pipestagemem,node distance=12mm,above=of dst-bottom] (invalidate1) {INVALIDATE, GLOBAL, \texttt{FRAG|TOP}, \texttt{SHADER\_READ}};
 %
 \draw (src.west) edge [->,pipedep] (flush1.10);
