@@ -1,0 +1,134 @@
+\input{deps-common.tex}
+
+\tikzset{
+action-mem/.pic={
+%
+\node [pipestageinner-wrap] (vs) {};
+\node [pipestageinner,below=of vs.north,yshift=+2mm] (vs-inner) {VERT};
+\node [pipestageinner-mem,above=of vs.south,yshift=-2mm] (vs-mem) {WRITE $img_1$};
+\node [pipestageinner,right=of vs] (fs) {FRAG};
+\node [pipestageinner,right=of fs] (ca) {COLR};
+\node [pipestageinner,right=of ca] (comp) {COMP};
+\node [pipestageinner,right=of comp] (xfer) {XFER};
+%
+\draw [memequiv] (vs-inner) -- (vs-mem);
+%
+\node [pipestage,above=of ca] (top) {TOP};
+\node [pipestage,below=of ca] (bottom) {BOTTOM};
+%
+\draw (top.south)
+    edge [->,pipedep,in=90,out=270] (vs)
+    edge [->,pipedep,in=90,out=270] (fs)
+    edge [->,pipedep,in=90,out=270] (ca)
+    edge [->,pipedep,in=90,out=270] (comp)
+    edge [->,pipedep,in=90,out=270] (xfer);
+\draw (bottom.north)
+    edge [<-,pipedep,in=270,out=90] (vs)
+    edge [<-,pipedep,in=270,out=90] (fs)
+    edge [<-,pipedep,in=270,out=90] (ca)
+    edge [<-,pipedep,in=270,out=90] (comp)
+    edge [<-,pipedep,in=270,out=90] (xfer);
+%
+\begin{scope}[on background layer]
+\node (bg) [draw,fit=(top) (bottom) (vs) (xfer),inner ysep=16pt] {};
+\node [anchor=north west] at (bg.north west) {#1};
+\end{scope}
+%
+}}
+
+\tikzset{
+action-mem2/.pic={
+%
+\node [pipestageinner] (vs) {VERT};
+\node [pipestageinner-wrap,right=of vs] (fs) {};
+\node [pipestageinner,below=of fs.north,yshift=+2mm] (fs-inner) {FRAG};
+\node [pipestageinner-mem,above=of fs.south,yshift=-2mm] (fs-mem) {READ $img_1$};
+\node [pipestageinner,right=of fs] (ca) {COLR};
+\node [pipestageinner,right=of ca] (comp) {COMP};
+\node [pipestageinner,right=of comp] (xfer) {XFER};
+%
+\draw [memequiv] (fs-inner) -- (fs-mem);
+%
+\node [pipestage,above=of ca] (top) {TOP};
+\node [pipestage,below=of ca] (bottom) {BOTTOM};
+%
+\draw (top.south)
+    edge [->,pipedep,in=90,out=270] (vs)
+    edge [->,pipedep,in=90,out=270] (fs)
+    edge [->,pipedep,in=90,out=270] (ca)
+    edge [->,pipedep,in=90,out=270] (comp)
+    edge [->,pipedep,in=90,out=270] (xfer);
+\draw (bottom.north)
+    edge [<-,pipedep,in=270,out=90] (vs)
+    edge [<-,pipedep,in=270,out=90] (fs)
+    edge [<-,pipedep,in=270,out=90] (ca)
+    edge [<-,pipedep,in=270,out=90] (comp)
+    edge [<-,pipedep,in=270,out=90] (xfer);
+%
+\begin{scope}[on background layer]
+\node (bg) [draw,fit=(top) (bottom) (vs) (xfer),inner ysep=16pt] {};
+\node [anchor=north west] at (bg.north west) {#1};
+\end{scope}
+%
+}}
+
+\tikzset{barrier-vsxf-top-mem/.pic={
+%
+\node [pipestageinner] (src-top) {TOP};
+\node [pipestageinner,right=of src-top] (src-bottom) {BOTT};
+\node [pipestageinner,right=of src-bottom] (src-vs) {VERT};
+\node [pipestageinner,right=of src-vs] (src-fs) {FRAG};
+\node [pipestageinner,right=of src-fs] (src-ca) {COLR};
+\node [pipestageinner,right=of src-ca] (src-comp) {COMP};
+\node [pipestageinner,right=of src-comp] (src-xfer) {XFER};
+\node [pipestageinner,yshift=-6cm] (dst-top) {TOP};
+\node [pipestageinner,right=of dst-top] (dst-bottom) {BOTT};
+\node [pipestageinner,right=of dst-bottom] (dst-vs) {VERT};
+\node [pipestageinner,right=of dst-vs] (dst-fs) {FRAG};
+\node [pipestageinner,right=of dst-fs] (dst-ca) {COLR};
+\node [pipestageinner,right=of dst-ca] (dst-comp) {COMP};
+\node [pipestageinner,right=of dst-comp] (dst-xfer) {XFER};
+%
+\node [pipestage,node distance=8mm,below=of src-fs] (src) {SRC};
+\node [pipestage,node distance=8mm,above=of dst-fs] (dst) {DST};
+\node [pipestage,node distance=10mm,below=of src] (pretrans) {PRE\_TRANS};
+\node [pipestage,node distance=10mm,above=of dst] (posttrans) {POST\_TRANS};
+%
+\node [pipestagemem,node distance=12mm,below=of src-bottom] (flush1) {FLUSH, $img_1$, \texttt{VERT|XFER}, \texttt{SHADER\_WRITE}};
+\node [pipestagemem,node distance=12mm,above=of dst-bottom] (invalidate1) {INVALIDATE, GLOBAL, \texttt{FRAG|TOP}, \texttt{SHADER\_READ}};
+%
+\draw (src.west) edge [->,pipedep] (flush1.10);
+\draw (flush1.350) edge [->,pipedep] (pretrans.north west);
+\draw (posttrans.west) edge [->,pipedep] (invalidate1.10);
+\draw (invalidate1.350) edge [->,pipedep] (dst.north west);
+%
+\draw (src.north)
+    edge [<-,pipedep,in=330,out=90] (src-vs)
+    edge [<-,pipedep,in=270,out=90] (src-xfer);
+\draw (dst.south)
+    edge [->,pipedep,in=90,out=270] (dst-top)
+    edge [->,pipedep,in=90,out=270] (dst-fs);
+\draw [->,pipedep] (src) -- (pretrans);
+\draw [->,pipedep] (pretrans) -- (posttrans);
+\draw [->,pipedep] (posttrans) -- (dst);
+%
+\begin{scope}[on background layer]
+\node (bg) [draw,fit=(src-top) (dst-xfer),inner ysep=16pt] {};
+\node [anchor=north west] at (bg.north west) {#1};
+\end{scope}
+}}
+
+\begin{document}
+\begin{tikzpicture}
+
+\pic[] (draw1-) {action-mem=Draw 1};
+\pic[yshift=-4cm] (barrier1-) {barrier-vsxf-top-mem=Pipeline barrier};
+\pic[yshift=-14cm] (draw2-) {action-mem2=Draw 2};
+
+\draw [->,pipedep2] (draw1-vs.south) -- (barrier1-src-vs.north);
+\draw [->,pipedep2] (draw1-xfer.south) -- (barrier1-src-xfer.north);
+\draw [->,pipedep2] (barrier1-dst-top.south) -- (draw2-top.north);
+\draw [->,pipedep2] (barrier1-dst-fs.south) -- (draw2-fs.north);
+
+\end{tikzpicture}
+\end{document}
