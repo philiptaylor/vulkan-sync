@@ -103,7 +103,6 @@ We define the execution dependency order '<' as follows:
     * (*barrier*, *dstStage*) < (*b*, *dstStage*)
   * For every *b* in *B_s*, and every *dstStage* in *extractStages(barrier.dstStageMask)*:
     * (*barrier*, *dstStage*) < (*b*, SRC, *dstStage*)
-
   * Let *M_{transition}* be the set of all `VkImageMemoryBarrier` *imgMemBarrier* in *barrier*, where *imgMemBarrier.oldLayout* != *imgMemBarrier.newLayout*.
   * For every *transition* in *M_{transition}*:
     * (*barrier*, PRE_TRANS) < *transition* < (*barrier*, POST_TRANS)
@@ -130,7 +129,6 @@ The active source stages are connected to the corresponding stages of earlier co
     * (*waitEvents*, DST, *dstStage*) < (*b*, *dstStage*)
   * For every *b* in *B_s*, and every *dstStage* in *extractStages(waitEvents.dstStageMask)*:
     * (*waitEvents*, DST, *dstStage*) < (*b*, SRC, *dstStage*)
-
   * Let *M_{transition}* be the set of all `VkImageMemoryBarrier` *imgMemBarrier* in *waitEvents*, where *imgMemBarrier.oldLayout* != *imgMemBarrier.newLayout*.
   * For every *transition* in *M_{transition}*:
     * (*waitEvents*, PRE_TRANS) < *transition* < (*waitEvents*, POST_TRANS)
@@ -212,7 +210,6 @@ This is defined in terms of primary command buffers. For commands in secondary c
     * Otherwise:
       * For every *srcStage* in *extractStages(subpassDep.srcStageMask)*:
         * (*subpassDep.srcSubpass*, DST, *srcStage*) < *subpassDep*
-
     * If *subpassDep.dstcSubpass* is `VK_SUBPASS_EXTERNAL`:
       * Let *B_a* be the set of all action commands following the current render pass, in command order.
       * Let *B_s* be the set of all sync commands following the current render pass, in command order.
