@@ -37,11 +37,11 @@ First we need to define a few terms.
 An "execution dependency order" is a partial order over elements of the following types:
 * (action command, stage)
 * (sync command, SRC or DST, stage)
-* (sync command, SRC or DST)
+* (sync command, SRC or DST or POST_TRANS or PRE_TRANS)
+* (command buffer, SUBMIT or COMPLETE)
+* (subpass, SRC or DST, stage)
+* subpass dependency
 * layout transition
-* opaque identifier used for subpass dependencies
-* submission of a command buffer
-* completion of a command buffer
 
 Actions commands are:
 * vkCmdDraw (+Indirect, +Indexed)
@@ -62,7 +62,7 @@ Sync commands are:
 * vkCmdWaitEvents
 * vkSetEvent, vkResetEvent ???
 
-By "command" we usually mean a specific submission or execution of a command. A command might be recorded once but its command buffer might be submitted many times, and each time will count as a separate submission/execution with its own position in the ordering. (TODO: clean up this terminology.)
+By "command" we really mean a single execution of a command. A command might be recorded once but its command buffer might be submitted many times, and each time will count as a separate execution with its own separate position in the ordering.
 
 *extractStages(mask)* converts a bitmask into a set of stages:
 * If *mask* & `TOP_OF_PIPE_BIT`, add `TOP_OF_PIPE` into the set.
@@ -82,21 +82,21 @@ We define the execution dependency order '<' as follows:
 * For every `vkCmdPipelineBarrier` *barrier* that does not have `BY_REGION_BIT`:
   * If the barrier is not inside a render pass:
     * Let *A_a* be the set of all action commands preceding *barrier* in the current queue, in command order.
-    * Let *A_s* be the set of all sync commands preceding *barrier* in the current queue, in command order.
+    * Let *A_s* be the set of all sync   commands preceding *barrier* in the current queue, in command order.
     * Let *B_a* be the set of all action commands following *barrier* in the current queue, in command order.
-    * Let *B_s* be the set of all sync commands following *barrier* in the current queue, in command order.
+    * Let *B_s* be the set of all sync   commands following *barrier* in the current queue, in command order.
   * If the barrier is inside a render pass:
     * Let *A_a* be the set of all action commands preceding *barrier* in the current subpass, in command order.
-    * Let *A_s* be the set of all sync commands preceding *barrier* in the current subpass, in command order.
+    * Let *A_s* be the set of all sync   commands preceding *barrier* in the current subpass, in command order.
     * Let *B_a* be the set of all action commands following *barrier* in the current subpass, in command order.
-    * Let *B_s* be the set of all sync commands following *barrier* in the current subpass, in command order.
+    * Let *B_s* be the set of all sync   commands following *barrier* in the current subpass, in command order.
   * For every *a* in *A_a*, and every *srcStage* in *extractStages(barrier.srcStageMask)*:
     * (*a*, *srcStage*) < (*barrier*, SRC, *srcStage*)
   * For every *a* in *A_s*, and every *srcStage* in *extractStages(barrier.srcStageMask)*:
     * (*a*, DST, *srcStage*) < (*barrier*, SRC, *srcStage*)
   * For every *srcStage* in *extractStages(barrier.srcStageMask)*:
     * (*barrier*, SRC, *srcStage*) < (*barrier*, SRC)
-  * (*barrier*, SRC) < (*barrier*, DST)
+  * (*barrier*, SRC) < (*barrier*, PRE_TRANS) < (*barrier*, POST_TRANS) < (*barrier*, DST)
   * For every *dstStage* in *extractStages(barrier.dstStageMask)*:
     * (*barrier*, DST) < (*barrier*, DST, *dstStage*)
   * For every *b* in *B_a*, and every *dstStage* in *extractStages(barrier.dstStageMask)*:
@@ -106,14 +106,24 @@ We define the execution dependency order '<' as follows:
 
   * Let *M_{transition}* be the set of all `VkImageMemoryBarrier` *imgMemBarrier* in *barrier*, where *imgMemBarrier.oldLayout* != *imgMemBarrier.newLayout*.
   * For every *transition* in *M_{transition}*:
-    * (*barrier*, SRC) < *transition*
-    * *transition* < (*barrier*, DST)
-  * TODO: transitions need to be globally ordered (including render pass ones)
+    * (*barrier*, PRE_TRANS) < *transition* < (*barrier*, POST_TRANS)
+
+---
+
+**NOTE**: This is defining that a pipeline barrier looks like:
+
+![](images/pipeline-barrier.png)
+
+There are sets of source stages and destination stages. The stages included in `srcStageMask`/`dstStageMask` are connected to the barrier's internal SRC/DST. Image layout transitions happen in the middle of the pipeline barrier.
+
+The active source stages are connected to the corresponding stages of earlier commands (either all earlier commands, or (if the barrier is inside a subpass) earlier commands in the current subpass). The active destination stages are connected similarly to following commands. This means you can construct a chain of execution dependencies through multiple pipeline barriers, as long as they have the appropriate bits set in `srcStageMask`/`dstStageMask` to make the connection.
+
+---
 
 * For every `vkCmdWaitEvents` *waitEvents*:
   * Let *B_a* be the set of all action commands following *waitEvents* in the current queue, in command order.
   * Let *B_s* be the set of all sync commands following *waitEvents* in the current queue, in command order.
-  * (*waitEvents*, SRC) < (*waitEvents*, DST)
+  * (*waitEvents*, SRC) < (*waitEvents*, PRE_TRANS) < (*waitEvents*, POST_TRANS) < (*waitEvents*, DST)
   * For every *dstStage* in *extractStages(waitEvents.dstStageMask)*:
     * (*waitEvents*, DST) < (*waitEvents*, DST, *dstStage*)
   * For every *b* in *B_a*, and every *dstStage* in *extractStages(waitEvents.dstStageMask)*:
@@ -123,8 +133,7 @@ We define the execution dependency order '<' as follows:
 
   * Let *M_{transition}* be the set of all `VkImageMemoryBarrier` *imgMemBarrier* in *waitEvents*, where *imgMemBarrier.oldLayout* != *imgMemBarrier.newLayout*.
   * For every *transition* in *M_{transition}*:
-    * (*waitEvents*, SRC) < *transition*
-    * *transition* < (*waitEvents*, DST)
+    * (*waitEvents*, PRE_TRANS) < *transition* < (*waitEvents*, POST_TRANS)
 
 * For every `vkCmdSetEvent` *setEvent* on some event object *event*:
   * Let *W* be the set of `vkCmdWaitEvents` commands, such that for each *waitEvents* in *W*:
@@ -141,18 +150,52 @@ We define the execution dependency order '<' as follows:
 
 * TODO: vkSetEvent from host
 
+---
+
+**NOTE**: A pair of `vkCmdSetEvent` and `vkCmdWaitEvents` is very similar to a `vkCmdPipelineBarrier` split in half.
+
+---
+
 * For all action commands *c*:
   * For all stages *stage* (not including `TOP` or `BOTTOM`):
-    * (*c*, `TOP`) < (*c*, *stage*)
-    * (*c*, *stage*) < (*c*, `BOTTOM`)
+    * (*c*, `TOP`) < (*c*, *stage*) < (*c*, `BOTTOM`)
 
-* For all action commands *c* inside a command buffer:
-  * submission of that command buffer < (*c*, `TOP`)
-  * (*c*, `BOTTOM`) < completion of that command buffer
+---
+
+**NOTE**: This is defining that an action command looks like:
+
+![](images/action-command.png)
+
+i.e. a bunch of stages between `TOP` and `BOTTOM`. Action commands will not do work in all of these stages.
+
+---
+
+* For all action commands *c*:
+  * Let *cmdBuf* be the primary command buffer containing *c*.
+  * (*cmdBuf*, SUBMIT) < (*c*, `TOP`)
+  * (*c*, `BOTTOM`) < (*cmdBuf*, COMPLETE)
 
 * For all sync commands *c* inside a command buffer:
-  * submission of that command buffer < (*c*, SRC)
-  * (*c*, DST) < completion of that command buffer
+  * Let *cmdBuf* be the primary command buffer containing *c*.
+  * (*cmdBuf*, SUBMIT) < (*c*, SRC)
+  * (*c*, DST) < (*cmdBuf*, COMPLETE)
+
+---
+
+**NOTE**: This is saying that commands can't start before their corresponding command buffer, and the command buffer won't be considered complete until all its commands are complete.
+
+This is defined in terms of primary command buffers. For commands in secondary command buffers, it'll use the primary command buffer that executes that secondary command buffer.
+
+---
+
+* For every subpass *subpass*:
+  * For every stage *stage*:
+    * (*subpass*, SRC, *stage*) < (*subpass*, DST, *stage*)
+    * For every action command *c* in *subpass*:
+      * (*subpass*, SRC, *stage*) < (*c*, *stage*) < (*subpass*, DST, *stage*)
+    * For every sync command *c* in *subpass*:
+      * (*subpass*, SRC, *stage*) < (*c*, SRC, *stage*)
+      * (*c*, DST, *stage*) < (*subpass*, DST, *stage*)
 
 * For every `VkSubpassDependency` *subpassDep* that does not have `BY_REGION_BIT`:
   * If *subpassDep.srcSubpass* = *subpassDep.dstSubpass*:
@@ -162,27 +205,30 @@ We define the execution dependency order '<' as follows:
     * If *subpassDep.srcSubpass* is `VK_SUBPASS_EXTERNAL`:
       * Let *A_a* be the set of all action commands preceding the current render pass, in command order.
       * Let *A_s* be the set of all sync commands preceding the current render pass, in command order.
+      * For every *a* in *A_a*, and every *srcStage* in *extractStages(subpassDep.srcStageMask)*:
+        * (*a*, *srcStage*) < *subpassDep*
+      * For every *a* in *A_s*, and every *srcStage* in *extractStages(subpassDep.srcStageMask)*:
+        * (*a*, DST, *srcStage*) < *subpassDep*
     * Otherwise:
-      * Let *A_a* be the set of all action commands in subpass *subpassDep.srcSubpass* of the current render pass, in command order.
-      * Let *A_s* be the set of all sync commands in subpass *subpassDep.srcSubpass* of the current render pass, in command order.
+      * For every *srcStage* in *extractStages(subpassDep.srcStageMask)*:
+        * (*subpassDep.srcSubpass*, DST, *srcStage*) < *subpassDep*
+
     * If *subpassDep.dstcSubpass* is `VK_SUBPASS_EXTERNAL`:
       * Let *B_a* be the set of all action commands following the current render pass, in command order.
       * Let *B_s* be the set of all sync commands following the current render pass, in command order.
+      * For every *b* in *B_a*, and every *dstStage* in *extractStages(subpassDep.dstStageMask)*:
+        * *subpassDep* < (*b*, *dstStage*)
+      * For every *b* in *B_s*, and every *dstStage* in *extractStages(subpassDep.dstStageMask)*:
+        * *subpassDep* < (*b*, SRC, *dstStage*)
     * Otherwise:
-      * Let *B_a* be the set of all action commands in subpass *subpassDep.dstSubpass* of the current render pass, in command order.
-      * Let *B_s* be the set of all sync commands in subpass *subpassDep.dstSubpass* of the current render pass, in command order.
-    * Let *dep* be a fresh opaque identifier.
-    * For every *a* in *A_a*, and every *srcStage* in *extractStages(subpassDep.srcStageMask)*:
-      * (*a*, *srcStage*) < *dep*
-    * For every *a* in *A_s*, and every *srcStage* in *extractStages(subpassDep.srcStageMask)*:
-      * (*a*, DST, *srcStage*) < *dep*
-    * For every *b* in *B_a*, and every *dstStage* in *extractStages(subpassDep.dstStageMask)*:
-      * *dep* < (*b*, *dstStage*)
-    * For every *b* in *B_s*, and every *dstStage* in *extractStages(subpassDep.dstStageMask)*:
-      * *dep* < (*b*, SRC, *dstStage*)
+      * For every *dstStage* in *extractStages(subpassDep.dstStageMask)*:
+        * *subpassDep* < (*subpassDep.dstSubpass*, SRC, *dstStage*)
 
-    * TODO: this is wrong, we need to handle dependency chains through empty subpasses
-    * TODO: layout transitions, etc
+---
+
+**NOTE**: The definition of subpass SRC/DST stages is necessary because we might have execution dependency chains passing through a subpass which contains no commands. The SRC/DST stages give something for the dependency to be ordered relative to.
+
+---
 
 * Transitivity: If *X* < *Y* and *Y* < *Z*, then *X* < *Z*.
 
@@ -208,6 +254,8 @@ Finally we can say:
 * If *X* < *Y*, then the implementation must complete the work performed by *X* before starting the work performed by *Y*.
 * If *X* <\_{region} *Y*, then for every region (x,y,layer) in the framebuffer (or viewport or something?), the implementation must complete the work performed by *X* for that region, before starting the work performed by *Y* for that region.
 * In all other cases, the implementation may reorder and overlap work however it wishes.
+
+(TODO: define what "completion" actually means)
 
 Note that '<' is defined so that execution dependencies always go in the same direction as command order. (...unless there are bugs in the definition). That means an implementation could simply execute every command in command order, with no pipelining and no reordering, and would satisfy all the requirements above. Or it could choose to insert arbitrary sync points at which every previous command completes before any subsequent command starts, for example at the start/end of a command buffer, to limit the scope in which it has to track parallelism.
 
@@ -264,12 +312,11 @@ FLUSH and INVALIDATE are created by memory barriers:
       * (*barrier*, SRC) < (FLUSH, *barrier*, *srcStage*, *srcAccess*, GLOBAL) < (*barrier*, PRE_TRANS)
     * For every *dstAccess* in *memoryBarrier.dstAccessMask*, and every *dstStage* in *extractStages(barrier.dstStageMask)*:
       * (*barrier*, POST_TRANS) < (INVALIDATE, *barrier*, *dstStage*, *dstAccess*, GLOBAL) < (*barrier*, DST)
-    * (TODO: need to define PRE_TRANS, POST_TRANS in the earlier section; we need them to hook these operations around the layout transitions)
   * For every *bufferMemoryBarrier* in *barrier.pBufferMemoryBarriers*:
     * ... similar but with a buffer range instead of GLOBAL
   * For every *imageMemoryBarrier* in *barrier.pImageMemoryBarriers*:
     * ... similar but with an image subresource instead of GLOBAL
-* TODO: all the other ways of defining explicit and implicit memory barriers  
+* TODO: all the other ways of defining explicit and implicit memory barriers
 
 If we modify the earlier example to include some memory barriers like:
 ```cpp
@@ -329,3 +376,28 @@ And there must not be any race conditions between writes and invalidates, for th
 TODO: by-region memory dependencies.
 
 TODO: cases where a stage in a command can be coherent with itself (Coherent in shaders, color attachment reads/writes, etc).
+
+
+
+
+### TODO
+
+Transitions: The spec says:
+
+> Layout transitions that are performed via image memory barriers are automatically ordered against other layout transitions, including those that occur as part of a render pass instance.
+
+but I have no idea what that even means?
+
+Fences
+
+Semaphores
+
+Host events
+
+Host accesses
+
+QueueSubmit guarantees
+
+Semaphores, fences, events: be clear about how they're referring to the object at the time the command is executed (it might get deleted later)
+
+...

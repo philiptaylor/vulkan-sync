@@ -118,7 +118,7 @@ barrierport/.style={
 \node [pipestageinner,right=of src-fs] (src-ca) {COLR};
 \node [pipestageinner,right=of src-ca] (src-comp) {COMP};
 \node [pipestageinner,right=of src-comp] (src-xfer) {XFER};
-\node [pipestageinner,yshift=-4cm] (dst-top) {TOP};
+\node [pipestageinner,yshift=-5cm] (dst-top) {TOP};
 \node [pipestageinner,right=of dst-top] (dst-bottom) {BOTT};
 \node [pipestageinner,right=of dst-bottom] (dst-vs) {VERT};
 \node [pipestageinner,right=of dst-vs] (dst-fs) {FRAG};
@@ -128,7 +128,10 @@ barrierport/.style={
 %
 \node [pipestage,node distance=8mm,below=of src-fs] (src) {SRC};
 \node [pipestage,node distance=8mm,above=of dst-fs] (dst) {DST};
-\node [pipestagelayout,node distance=16mm,below=of src-vs] (layout1) {Layout transition};
+\node [pipestage,node distance=2mm,below=of src] (pretrans) {PRE\_TRANS};
+\node [pipestage,node distance=2mm,above=of dst] (posttrans) {POST\_TRANS};
+\node [pipestagelayout,node distance=21mm,below=of src-vs] (layout1) {Layout transition};
+\node [pipestagelayout,node distance=21mm,below=of src-ca] (layout2) {Layout transition};
 %
 \draw (src.north)
     edge [<-,pipedep,in=270,out=90] (src-top)
@@ -146,9 +149,13 @@ barrierport/.style={
     edge [->,pipedep,in=150,out=270] (dst-ca)
     edge [->,pipedep,in=150,out=270] (dst-comp)
     edge [->,pipedep,in=90,out=270] (dst-xfer);
-\draw [->,pipedep] (src.south) -- (dst.north);
-\draw (src.south) edge [->,pipedep,in=45,out=270] (layout1.north);
-\draw (layout1.south) edge [->,pipedep,in=90,out=315] (dst.north);
+\draw [->,pipedep] (src) -- (pretrans);
+\draw [->,pipedep] (pretrans) -- (posttrans);
+\draw [->,pipedep] (posttrans) -- (dst);
+\draw (pretrans.south) edge [->,pipedep,in=45,out=270] (layout1.north);
+\draw (pretrans.south) edge [->,pipedep,in=135,out=270] (layout2.north);
+\draw (layout1.south) edge [->,pipedep,in=90,out=315] (posttrans.north);
+\draw (layout2.south) edge [->,pipedep,in=90,out=225] (posttrans.north);
 %
 \begin{scope}[on background layer]
 \node (bg) [draw,fit=(src-top) (dst-xfer),inner ysep=16pt] {};
@@ -176,13 +183,17 @@ barrierport/.style={
 %
 \node [pipestage,node distance=8mm,below=of src-fs] (src) {SRC};
 \node [pipestage,node distance=8mm,above=of dst-fs] (dst) {DST};
+\node [pipestage,node distance=2mm,below=of src] (pretrans) {PRE\_TRANS};
+\node [pipestage,node distance=2mm,above=of dst] (posttrans) {POST\_TRANS};
 %
 \draw (src.north)
     edge [<-,pipedep,in=330,out=90] (src-vs)
     edge [<-,pipedep,in=270,out=90] (src-xfer);
 \draw (dst.south)
     edge [->,pipedep,in=90,out=270] (dst-top);
-\draw [->,pipedep] (src.south) -- (dst.north);
+\draw [->,pipedep] (src) -- (pretrans);
+\draw [->,pipedep] (pretrans) -- (posttrans);
+\draw [->,pipedep] (posttrans) -- (dst);
 %
 \begin{scope}[on background layer]
 \node (bg) [draw,fit=(src-top) (dst-xfer),inner ysep=16pt] {};
