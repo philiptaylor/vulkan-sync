@@ -28,6 +28,8 @@ creates an execution dependency graph like:
 
 in which you can follow the arrows to see an execution dependency chain from e.g. draw 1's `VERTEX_SHADER` stage to draw 2's `TRANSFER` stage, meaning draw 1's `VERTEX_SHADER` must complete before draw 2's `TRANSFER` can start. However there is no execution dependency chain from draw 1's `FRAGMENT_SHADER` stage to any stage in draw 2, meaning the `FRAGMENT_SHADER` can run after or concurrently with any of draw 2's stages.
 
+When there are multiple arrows leading into a node, *all* of those dependencies must complete before the node can start. It is often easiest to read the graphs by starting at the node you're interested in, then reading backwards along the arrows, following every possible backwards chain of arrows, and the nodes you pass through will be all the ones that your initial node depends on.
+
 TODO: More diagrams, for events and subpasses and everything else.
 
 ### Definitions
@@ -96,9 +98,11 @@ We define the execution dependency order '<' as follows:
     * (*a*, DST, *srcStage*) < (*barrier*, SRC, *srcStage*)
   * For every *srcStage* in *extractStages(barrier.srcStageMask)*:
     * (*barrier*, SRC, *srcStage*) < (*barrier*, SRC)
+  * (*barrier*, SRC, TOP) < (*barrier*, SRC)
   * (*barrier*, SRC) < (*barrier*, PRE_TRANS) < (*barrier*, POST_TRANS) < (*barrier*, DST)
   * For every *dstStage* in *extractStages(barrier.dstStageMask)*:
     * (*barrier*, DST) < (*barrier*, DST, *dstStage*)
+  * (*barrier*, DST) < (*barrier*, DST, BOTTOM)
   * For every *b* in *B_a*, and every *dstStage* in *extractStages(barrier.dstStageMask)*:
     * (*barrier*, *dstStage*) < (*b*, *dstStage*)
   * For every *b* in *B_s*, and every *dstStage* in *extractStages(barrier.dstStageMask)*:
@@ -125,6 +129,7 @@ The active source stages are connected to the corresponding stages of earlier co
   * (*waitEvents*, SRC) < (*waitEvents*, PRE_TRANS) < (*waitEvents*, POST_TRANS) < (*waitEvents*, DST)
   * For every *dstStage* in *extractStages(waitEvents.dstStageMask)*:
     * (*waitEvents*, DST) < (*waitEvents*, DST, *dstStage*)
+  * (*waitEvents*, DST) < (*waitEvents*, DST, BOTTOM)
   * For every *b* in *B_a*, and every *dstStage* in *extractStages(waitEvents.dstStageMask)*:
     * (*waitEvents*, DST, *dstStage*) < (*b*, *dstStage*)
   * For every *b* in *B_s*, and every *dstStage* in *extractStages(waitEvents.dstStageMask)*:
@@ -143,6 +148,7 @@ The active source stages are connected to the corresponding stages of earlier co
     * (*a*, *stage*) < (*setEvent*, SRC, *stage*)
   * For every *stage* in *extractStages(setEvent.stageMask)*:
     * (*setEvent*, SRC, *stage*) < (*setEvent*, SRC)
+  * (*setEvent*, SRC, TOP) < (*setEvent*, SRC)
   * For every *waitEvents* in *W*:
     * (*setEvent*, SRC) < (*waitEvents*, SRC)
 

@@ -187,10 +187,12 @@ barrierport/.style={
 \node [pipestage,node distance=2mm,above=of dst] (posttrans) {POST\_TRANS};
 %
 \draw (src.north)
+    edge [<-,pipedep,in=270,out=90] (src-top)
     edge [<-,pipedep,in=330,out=90] (src-vs)
     edge [<-,pipedep,in=270,out=90] (src-xfer);
 \draw (dst.south)
-    edge [->,pipedep,in=90,out=270] (dst-top);
+    edge [->,pipedep,in=90,out=270] (dst-top)
+    edge [->,pipedep,in=30,out=270] (dst-bottom);
 \draw [->,pipedep] (src) -- (pretrans);
 \draw [->,pipedep] (pretrans) -- (posttrans);
 \draw [->,pipedep] (posttrans) -- (dst);

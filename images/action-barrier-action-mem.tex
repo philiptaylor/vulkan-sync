@@ -103,10 +103,12 @@ action-mem2/.pic={
 \draw (invalidate1.350) edge [->,pipedep] (dst.north west);
 %
 \draw (src.north)
+    edge [<-,pipedep,in=270,out=90] (src-top)
     edge [<-,pipedep,in=330,out=90] (src-vs)
     edge [<-,pipedep,in=270,out=90] (src-xfer);
 \draw (dst.south)
     edge [->,pipedep,in=90,out=270] (dst-top)
+    edge [->,pipedep,in=30,out=270] (dst-bottom)
     edge [->,pipedep,in=90,out=270] (dst-fs);
 \draw [->,pipedep] (src) -- (pretrans);
 \draw [->,pipedep] (pretrans) -- (posttrans);
